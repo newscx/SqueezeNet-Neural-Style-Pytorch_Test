@@ -63,12 +63,12 @@ def imload(image_name,resize = None):
     # a function to load image and transfer to Pytorch Variable.
     image = Image.open(image_name)
     if resize is not None:
-        resizefunc = transforms.Scale(resize)
+        resizefunc = transforms.Resize(resize)
         image = resizefunc(image)
     transform = transforms.Compose([
         transforms.ToTensor(),#Converts (H x W x C) of[0, 255] to (C x H x W) of range [0.0, 1.0]. 
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),])
-    image = Variable(transform(image),volatile=True)
+    image = Variable(transform(image))
     image = image.unsqueeze(0) 
     return image
 
@@ -120,9 +120,9 @@ def totalloss(style_refs,content_refs,style_features,content_features,style_weig
     # compute total loss 
     style_loss = [l2loss(style_features[i],style_refs[i]) for i in range(len(style_features))] 
     #a small trick to balance the influnce of diffirent style layer
-    mean_loss = sum(style_loss).data[0]/len(style_features)
+    mean_loss = sum(style_loss).item()/len(style_features)
     
-    style_loss = sum([(mean_loss/l.data[0])*l*STYLE_LAYER_WEIGHTS[i] 
+    style_loss = sum([(mean_loss/l.item())*l*STYLE_LAYER_WEIGHTS[i] 
                     for i,l in enumerate(style_loss)])/len(style_features) 
     
     content_loss = sum([l2loss(content_features[i],content_refs[i]) 
@@ -156,7 +156,7 @@ feature = FeatureExtracter(SUBMODEL)
 gram = GramMatrix()
 #build net component and useful function
 style = Stylize()
-l2loss = nn.MSELoss(size_average=False)
+l2loss = nn.MSELoss(reduction='sum')
 toImage = transforms.ToPILImage()
 
 #init a trainable image
@@ -189,7 +189,7 @@ for i in range(num_iters):
     loss = totalloss(style_refs,content_refs,style_features,content_features,
                      options.style_weight,options.content_weight)
     
-    loss_history.append(loss.data[0])
+    loss_history.append(loss.item())
     
     # save best image result before image update
     if min_loss > loss_history[-1]:
